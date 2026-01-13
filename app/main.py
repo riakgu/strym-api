@@ -3,13 +3,15 @@ from fastapi import FastAPI
 from app.config import get_settings
 from app.routers import health, ingestion, query, stats
 from app.core.exceptions import AppException, app_exception_handler
+from app.db.connection import init_db, close_db
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    print("Starting up...")
+    await init_db()
     yield
     # Shutdown
+    await close_db()
     print("Shutting down...")
 
 
