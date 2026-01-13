@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from app.config import get_settings
-from app.routers import health
+from app.routers import health, ingestion
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -22,6 +22,7 @@ def create_app() -> FastAPI:
     )
     
     app.include_router(health.router)
+    app.include_router(ingestion.router)
 
     return app
 
