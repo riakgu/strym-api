@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from app.config import get_settings
-from app.routers import health, ingestion, query, stats
+from app.routers import health, ingestion, query, stats, stream
 from app.core.exceptions import AppException, app_exception_handler
 from app.db.connection import init_db, close_db
 
@@ -28,6 +28,7 @@ def create_app() -> FastAPI:
     app.include_router(ingestion.router)
     app.include_router(query.router)
     app.include_router(stats.router)
+    app.include_router(stream.router)
 
     app.add_exception_handler(AppException, app_exception_handler)
 
