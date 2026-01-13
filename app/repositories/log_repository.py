@@ -1,3 +1,4 @@
+import json
 from datetime import datetime, timezone
 from typing import Any
 
@@ -15,6 +16,9 @@ class LogRepository:
         now = datetime.now(timezone.utc)
         timestamp = log.timestamp or now
 
+        # Convert metadata dict to JSON string for asyncpg
+        metadata_json = json.dumps(log.metadata) if log.metadata else None
+
         row = await self.conn.fetchrow(
             """
             INSERT INTO logs (
@@ -29,7 +33,7 @@ class LogRepository:
             log.source.instance_id,
             log.severity,
             log.message,
-            log.metadata,
+            metadata_json,
             log.trace_id,
             log.span_id,
             now,

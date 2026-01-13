@@ -1,21 +1,21 @@
 -- Create logs table
 CREATE TABLE IF NOT EXISTS logs (
-    id BIGSERIAL PRIMARY KEY,
+    id BIGSERIAL,
     timestamp TIMESTAMPTZ NOT NULL,
     
     -- Source
-    source_app VARCHAR(100) NOT NULL,
-    source_host VARCHAR(255),
-    source_instance VARCHAR(100),
+    source_app TEXT NOT NULL,
+    source_host TEXT,
+    source_instance TEXT,
     
     -- Log
-    severity VARCHAR(20) NOT NULL,
+    severity TEXT NOT NULL,
     message TEXT NOT NULL,
     metadata JSONB,
     
     -- Tracing
-    trace_id VARCHAR(64),
-    span_id VARCHAR(32),
+    trace_id TEXT,
+    span_id TEXT,
     
     -- Full-text search
     message_search tsvector GENERATED ALWAYS AS (
@@ -23,6 +23,9 @@ CREATE TABLE IF NOT EXISTS logs (
     ) STORED,
     
     created_at TIMESTAMPTZ DEFAULT NOW(),
+    
+    -- TimescaleDB requires timestamp in primary key
+    PRIMARY KEY (id, timestamp),
     
     CHECK (severity IN ('debug', 'info', 'warn', 'error', 'fatal'))
 );
