@@ -6,6 +6,10 @@ from app.core.exceptions import AppException, app_exception_handler
 from app.db.connection import init_db, close_db
 from app.services.stream_service import stream_service
 from app.services.cache_service import cache_service
+from app.middleware import RateLimitMiddleware
+
+# Global middleware instance for lifecycle management
+rate_limit_middleware = RateLimitMiddleware(app=None)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -13,8 +17,10 @@ async def lifespan(app: FastAPI):
     await init_db()
     await stream_service.init()
     await cache_service.init()
+    await rate_limit_middleware.init()
     yield
     # Shutdown
+    await rate_limit_middleware.close()
     await cache_service.close()
     await stream_service.close()
     await close_db()
@@ -29,6 +35,9 @@ def create_app() -> FastAPI:
         description="Real-time log monitoring system",
         lifespan=lifespan,
     )
+    
+    # Add middleware (order matters - first added = outermost)
+    app.add_middleware(RateLimitMiddleware, redis_client=None)
     
     app.include_router(health.router)
     app.include_router(ingestion.router)
