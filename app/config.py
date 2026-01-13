@@ -8,14 +8,14 @@ class Settings(BaseSettings):
     debug: bool = False
 
     # Database
-    database_url: str = "postgresql://postgres:password@localhost:5433/strym"
+    database_url: str
     database_pool_size: int = 20
 
     # Redis
-    redis_url: str = "redis://localhost:6379/0"
+    redis_url: str
 
     # Auth
-    api_key: str = "strym-dev-key-change-in-production"
+    api_key: str
 
     model_config = SettingsConfigDict(
         env_file=".env",
