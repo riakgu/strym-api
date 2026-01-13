@@ -4,13 +4,16 @@ from app.config import get_settings
 from app.routers import health, ingestion, query, stats, stream
 from app.core.exceptions import AppException, app_exception_handler
 from app.db.connection import init_db, close_db
+from app.services.stream_service import stream_service
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
     await init_db()
+    await stream_service.init()
     yield
     # Shutdown
+    await stream_service.close()
     await close_db()
     print("Shutting down...")
 

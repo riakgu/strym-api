@@ -11,6 +11,9 @@ class Settings(BaseSettings):
     database_url: str = "postgresql://postgres:password@localhost:5433/strym"
     database_pool_size: int = 20
 
+    # Redis
+    redis_url: str = "redis://localhost:6379/0"
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

@@ -1,8 +1,12 @@
 import asyncio
+import json
 from dataclasses import dataclass, field
 from typing import Any
 
 from fastapi import WebSocket
+import redis.asyncio as redis
+
+from app.config import get_settings
 
 
 @dataclass
@@ -24,13 +28,51 @@ class ConnectionState:
 class StreamService:
     """
     Manages WebSocket connections and message distribution.
-    Simple in-memory implementation (single instance).
-    For multi-instance, use Redis pub/sub.
+    Uses Redis pub/sub for multi-instance support.
     """
+    
+    CHANNEL = "strym:logs"
 
     def __init__(self):
         self.connections: dict[str, ConnectionState] = {}
         self._lock = asyncio.Lock()
+        self._redis: redis.Redis | None = None
+        self._pubsub: redis.client.PubSub | None = None
+        self._listener_task: asyncio.Task | None = None
+
+    async def init(self) -> None:
+        """Initialize Redis connection and start listener."""
+        settings = get_settings()
+        self._redis = redis.from_url(settings.redis_url)
+        self._pubsub = self._redis.pubsub()
+        await self._pubsub.subscribe(self.CHANNEL)
+        self._listener_task = asyncio.create_task(self._listen_for_messages())
+        print(f"Redis pub/sub initialized on channel: {self.CHANNEL}")
+
+    async def close(self) -> None:
+        """Close Redis connection."""
+        if self._listener_task:
+            self._listener_task.cancel()
+            try:
+                await self._listener_task
+            except asyncio.CancelledError:
+                pass
+        if self._pubsub:
+            await self._pubsub.unsubscribe(self.CHANNEL)
+            await self._pubsub.close()
+        if self._redis:
+            await self._redis.close()
+        print("Redis pub/sub closed")
+
+    async def _listen_for_messages(self) -> None:
+        """Listen for messages from Redis and broadcast to local connections."""
+        try:
+            async for message in self._pubsub.listen():
+                if message["type"] == "message":
+                    data = json.loads(message["data"])
+                    await self._broadcast_to_local(data)
+        except asyncio.CancelledError:
+            pass
 
     async def connect(self, websocket: WebSocket, session_id: str) -> None:
         """Register new WebSocket connection."""
@@ -68,7 +110,15 @@ class StreamService:
                 self.connections[session_id].subscriptions.pop(subscription_id, None)
 
     async def broadcast_log(self, log_data: dict) -> None:
-        """Broadcast log to all matching subscriptions."""
+        """Publish log to Redis channel (all instances will receive it)."""
+        if self._redis:
+            await self._redis.publish(self.CHANNEL, json.dumps(log_data))
+        else:
+            # Fallback to local broadcast if Redis not available
+            await self._broadcast_to_local(log_data)
+
+    async def _broadcast_to_local(self, log_data: dict) -> None:
+        """Broadcast log to local WebSocket connections."""
         async with self._lock:
             connections = list(self.connections.values())
 
@@ -123,5 +173,5 @@ class StreamService:
         return True
 
 
-# Global instance (for single-instance deployment)
+# Global instance
 stream_service = StreamService()
