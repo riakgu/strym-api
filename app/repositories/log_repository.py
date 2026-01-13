@@ -121,6 +121,11 @@ class LogRepository:
 
     def _row_to_entry(self, row: asyncpg.Record) -> LogEntry:
         """Convert database row to LogEntry."""
+        # Parse metadata JSON string back to dict
+        metadata = row["metadata"]
+        if isinstance(metadata, str):
+            metadata = json.loads(metadata)
+        
         return LogEntry(
             id=str(row["id"]),
             timestamp=row["timestamp"],
@@ -131,7 +136,7 @@ class LogRepository:
             ),
             severity=row["severity"],
             message=row["message"],
-            metadata=row["metadata"],
+            metadata=metadata,
             trace_id=row["trace_id"],
             span_id=row["span_id"],
             created_at=row["created_at"],
