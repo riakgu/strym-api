@@ -6,7 +6,7 @@ from app.core.exceptions import AppException, app_exception_handler
 from app.db.connection import init_db, close_db
 from app.services.stream_service import stream_service
 from app.services.cache_service import cache_service
-from app.middleware import RateLimitMiddleware
+from app.middleware import RateLimitMiddleware, RequestLoggingMiddleware
 
 # Global middleware instance for lifecycle management
 rate_limit_middleware = RateLimitMiddleware(app=None)
@@ -37,6 +37,7 @@ def create_app() -> FastAPI:
     )
     
     # Add middleware (order matters - first added = outermost)
+    app.add_middleware(RequestLoggingMiddleware)
     app.add_middleware(RateLimitMiddleware, redis_client=None)
     
     app.include_router(health.router)

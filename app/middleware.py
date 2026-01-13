@@ -1,4 +1,6 @@
 import time
+import logging
+from datetime import datetime, timezone
 from typing import Callable
 
 from fastapi import Request, Response
@@ -7,6 +9,50 @@ from starlette.middleware.base import BaseHTTPMiddleware
 import redis.asyncio as redis
 
 from app.config import get_settings
+
+# Configure logger
+logger = logging.getLogger("strym.requests")
+
+
+class RequestLoggingMiddleware(BaseHTTPMiddleware):
+    """
+    Middleware to log all HTTP requests.
+    Logs: method, path, status, duration, client IP
+    """
+    
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        # Skip logging for health checks
+        if request.url.path.startswith("/health"):
+            return await call_next(request)
+        
+        start_time = time.time()
+        client_ip = request.client.host if request.client else "unknown"
+        
+        # Process request
+        response = await call_next(request)
+        
+        # Calculate duration
+        duration_ms = round((time.time() - start_time) * 1000, 2)
+        
+        # Log request
+        log_message = (
+            f"{request.method} {request.url.path} "
+            f"{response.status_code} {duration_ms}ms {client_ip}"
+        )
+        
+        # Use appropriate log level based on status
+        if response.status_code >= 500:
+            logger.error(log_message)
+        elif response.status_code >= 400:
+            logger.warning(log_message)
+        else:
+            logger.info(log_message)
+        
+        # Also print to console for development
+        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        print(f"[{timestamp}] {log_message}")
+        
+        return response
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
