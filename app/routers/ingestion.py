@@ -43,10 +43,27 @@ async def ingest_log(
 async def ingest_bulk(
     logs: list[LogCreate],
     service: LogServiceDep,
+    background_tasks: BackgroundTasks,
     _: Annotated[str, Depends(verify_api_key)],
 ) -> dict:
     """Ingest multiple logs."""
     now = datetime.now(timezone.utc)
     result = await service.ingest_bulk(logs)
     result["batch_id"] = f"batch_{int(now.timestamp() * 1000)}"
+    
+    # Broadcast each log to WebSocket subscribers
+    for log in logs:
+        background_tasks.add_task(
+            stream_service.broadcast_log,
+            {
+                "timestamp": (log.timestamp or now).isoformat(),
+                "source": log.source.model_dump(),
+                "severity": log.severity,
+                "message": log.message,
+                "metadata": log.metadata,
+                "trace_id": log.trace_id,
+                "span_id": log.span_id,
+            }
+        )
+    
     return result
