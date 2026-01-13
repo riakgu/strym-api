@@ -1,10 +1,12 @@
 from datetime import datetime, timezone
+from typing import Annotated
 
-from fastapi import APIRouter, BackgroundTasks
+from fastapi import APIRouter, BackgroundTasks, Depends
 
 from app.models.log import LogCreate, LogResponse
 from app.dependencies import LogServiceDep
 from app.services.stream_service import stream_service
+from app.core.security import verify_api_key
 
 router = APIRouter(prefix="/logs", tags=["Ingestion"])
 
@@ -14,6 +16,7 @@ async def ingest_log(
     log: LogCreate,
     service: LogServiceDep,
     background_tasks: BackgroundTasks,
+    _: Annotated[str, Depends(verify_api_key)],
 ) -> LogResponse:
     """Ingest a single log entry."""
     result = await service.ingest(log)
@@ -37,7 +40,11 @@ async def ingest_log(
 
 
 @router.post("/bulk", status_code=202)
-async def ingest_bulk(logs: list[LogCreate], service: LogServiceDep) -> dict:
+async def ingest_bulk(
+    logs: list[LogCreate],
+    service: LogServiceDep,
+    _: Annotated[str, Depends(verify_api_key)],
+) -> dict:
     """Ingest multiple logs."""
     now = datetime.now(timezone.utc)
     result = await service.ingest_bulk(logs)

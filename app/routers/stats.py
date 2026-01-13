@@ -1,8 +1,10 @@
 from datetime import datetime
+from typing import Annotated
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Depends
 
 from app.dependencies import StatsServiceDep
+from app.core.security import verify_api_key
 
 router = APIRouter(prefix="/stats", tags=["Stats"])
 
@@ -10,6 +12,7 @@ router = APIRouter(prefix="/stats", tags=["Stats"])
 @router.get("/summary")
 async def get_summary(
     service: StatsServiceDep,
+    _: Annotated[str, Depends(verify_api_key)],
     source_app: str | None = None,
     start: datetime | None = None,
     end: datetime | None = None,
@@ -25,6 +28,7 @@ async def get_summary(
 @router.get("/timeseries")
 async def get_timeseries(
     service: StatsServiceDep,
+    _: Annotated[str, Depends(verify_api_key)],
     start: datetime | None = None,
     end: datetime | None = None,
     interval: str = Query(default="5m", pattern=r"^(1m|5m|15m|1h|1d)$"),

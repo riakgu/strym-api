@@ -1,10 +1,12 @@
 from datetime import datetime
 import time
+from typing import Annotated
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Depends
 
 from app.models.log import LogEntry
 from app.dependencies import LogServiceDep
+from app.core.security import verify_api_key
 
 router = APIRouter(prefix="/logs", tags=["Query"])
 
@@ -12,6 +14,7 @@ router = APIRouter(prefix="/logs", tags=["Query"])
 @router.get("")
 async def query_logs(
     service: LogServiceDep,
+    _: Annotated[str, Depends(verify_api_key)],
     source_app: str | None = None,
     severity: str | None = None,
     search: str | None = None,
@@ -40,6 +43,7 @@ async def query_logs(
 @router.get("/search")
 async def search_logs(
     service: LogServiceDep,
+    _: Annotated[str, Depends(verify_api_key)],
     q: str,
     source_app: str | None = None,
     limit: int = Query(default=50, le=1000),
@@ -61,6 +65,10 @@ async def search_logs(
 
 
 @router.get("/{log_id}")
-async def get_log_by_id(log_id: str, service: LogServiceDep) -> LogEntry:
+async def get_log_by_id(
+    log_id: str,
+    service: LogServiceDep,
+    _: Annotated[str, Depends(verify_api_key)],
+) -> LogEntry:
     """Get single log by ID."""
     return await service.get_by_id(log_id)

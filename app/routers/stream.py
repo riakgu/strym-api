@@ -1,17 +1,23 @@
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query, WebSocketException
 
 from app.services.stream_service import stream_service
+from app.config import get_settings
 
 router = APIRouter(tags=["Stream"])
 
 
 @router.websocket("/stream")
-async def websocket_stream(websocket: WebSocket):
+async def websocket_stream(
+    websocket: WebSocket,
+    api_key: str | None = Query(default=None),
+):
     """
     WebSocket endpoint for real-time log streaming.
+    
+    Connect with: ws://localhost:3000/stream?api_key=your-key
     
     Client messages:
     - {"type": "subscribe", "subscription_id": "...", "filters": {...}}
@@ -28,6 +34,12 @@ async def websocket_stream(websocket: WebSocket):
     - {"type": "error", "code": "...", "message": "..."}
     - {"type": "ping", "timestamp": "..."}
     """
+    # Verify API key
+    settings = get_settings()
+    if not api_key or api_key != settings.api_key:
+        await websocket.close(code=4001, reason="Invalid or missing API key")
+        return
+    
     session_id = str(uuid.uuid4())
     
     await stream_service.connect(websocket, session_id)
